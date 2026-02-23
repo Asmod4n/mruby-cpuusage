@@ -45,7 +45,7 @@ typedef struct {
 #include <mruby/presym.h>
 #include <mruby/error.h>
 
-#ifdef PLATFORM_LINUX
+#if defined(PLATFORM_MACOS) || defined(PLATFORM_UNIX)
 static long cpuusage_hz = 0;
 static volatile int cpuusage_hz_init = 0;
 
@@ -182,7 +182,7 @@ mrb_cpuusage_snapshot(mrb_state *mrb, mrb_value self)
 void
 mrb_mruby_cpuusage_gem_init(mrb_state *mrb)
 {
-#ifdef PLATFORM_LINUX
+#if defined(PLATFORM_MACOS) || defined(PLATFORM_UNIX)
   if (!cpuusage_hz_init) {
     cpuusage_init(mrb);
     cpuusage_hz_init = 1;
