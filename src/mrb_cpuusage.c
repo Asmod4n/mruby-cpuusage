@@ -17,18 +17,6 @@ typedef struct {
 /* Platform detection */
 #if defined(_WIN32) || defined(_WIN64)
   #define PLATFORM_WINDOWS
-#elif defined(__APPLE__) && defined(__MACH__)
-  #define PLATFORM_MACOS
-#elif defined(__linux__)
-  #define PLATFORM_LINUX
-#elif defined(__unix__) || defined(__unix)
-  #define PLATFORM_UNIX
-#else
-  #define PLATFORM_UNKNOWN
-#endif
-
-/* Platform-specific includes */
-#ifdef PLATFORM_WINDOWS
   #include <windows.h>
 #else
   #include <sys/time.h>
@@ -45,7 +33,7 @@ typedef struct {
 #include <mruby/presym.h>
 #include <mruby/error.h>
 
-#if defined(PLATFORM_MACOS) || defined(PLATFORM_UNIX)
+#ifndef PLATFORM_WINDOWS
 static long cpuusage_hz = 0;
 static volatile int cpuusage_hz_init = 0;
 
@@ -70,7 +58,7 @@ cpuusage_init(mrb_state *mrb)
 **     double child_sys_time;
 **   } cpu_snapshot_t;
 */
-int
+static int
 cpuusage_snapshot(cpu_snapshot_t *snapshot)
 {
   if (!snapshot) {
@@ -100,29 +88,37 @@ cpuusage_snapshot(cpu_snapshot_t *snapshot)
 
   return 0;
 
-#elif defined(PLATFORM_LINUX)
+#elif defined(RUSAGE_THREAD) && defined(RUSAGE_CHILDREN)
   /* Linux: per-thread CPU usage via getrusage(RUSAGE_THREAD) */
-  struct rusage usage;
+  struct rusage usage_t, usage_c;
 
-  if (getrusage(RUSAGE_THREAD, &usage) != 0) {
+  if (getrusage(RUSAGE_THREAD, &usage_t) != 0) {
+    return -1;
+  }
+
+  if (getrusage(RUSAGE_CHILDREN, &usage_c) != 0) {
     return -1;
   }
 
   snapshot->user_time =
-      (double)usage.ru_utime.tv_sec +
-      (double)usage.ru_utime.tv_usec / 1000000.0;
+      (double)usage_t.ru_utime.tv_sec +
+      (double)usage_t.ru_utime.tv_usec / 1e6;
 
   snapshot->system_time =
-      (double)usage.ru_stime.tv_sec +
-      (double)usage.ru_stime.tv_usec / 1000000.0;
+      (double)usage_t.ru_stime.tv_sec +
+      (double)usage_t.ru_stime.tv_usec / 1e6;
 
-  /* RUSAGE_THREAD has no child times */
-  snapshot->child_user_time = 0.0;
-  snapshot->child_sys_time  = 0.0;
+  snapshot->child_user_time =
+      (double)usage_c.ru_utime.tv_sec +
+      (double)usage_c.ru_utime.tv_usec / 1e6;
+
+  snapshot->child_sys_time =
+      (double)usage_c.ru_stime.tv_sec +
+      (double)usage_c.ru_stime.tv_usec / 1e6;
 
   return 0;
 
-#elif defined(PLATFORM_MACOS) || defined(PLATFORM_UNIX)
+#else
   /* Other POSIX: use times(2) and fill utime/stime/cutime/cstime */
   struct tms t;
   clock_t ticks = times(&t);
@@ -137,15 +133,6 @@ cpuusage_snapshot(cpu_snapshot_t *snapshot)
   snapshot->child_sys_time  = (double)t.tms_cstime / (double)cpuusage_hz;
 
   return 0;
-
-#else
-  errno = ENOSYS;
-  /* Fallback for unknown platforms - return zeros */
-  snapshot->user_time       = 0.0;
-  snapshot->system_time     = 0.0;
-  snapshot->child_user_time = 0.0;
-  snapshot->child_sys_time  = 0.0;
-  return -1;
 #endif
 }
 
@@ -182,7 +169,7 @@ mrb_cpuusage_snapshot(mrb_state *mrb, mrb_value self)
 void
 mrb_mruby_cpuusage_gem_init(mrb_state *mrb)
 {
-#if defined(PLATFORM_MACOS) || defined(PLATFORM_UNIX)
+#ifndef PLATFORM_WINDOWS
   if (!cpuusage_hz_init) {
     cpuusage_init(mrb);
     cpuusage_hz_init = 1;
