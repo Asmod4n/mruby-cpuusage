@@ -11,15 +11,14 @@ Cross-platform CPU usage statistics for mruby - a lightweight mgem for tracking 
 - **Cross-platform**: Works on Linux, macOS, Windows, and other Unix-like systems
 - **Zero dependencies**: Uses only standard system APIs
 - **Snapshot-based**: Capture CPU time at different points for comparison
-- **Accurate**: Provides separate user and system CPU time measurements
+- **Accurate**: Provides separate user and system CPU time measurements, also child time where available.
 
 ## Supported Platforms
 
-- **Linux**: Uses `getrusage()` system call
-- **macOS**: Uses `getrusage()` system call
-- **Windows**: Uses `GetProcessTimes()` Win32 API
-- **Other Unix**: Uses `getrusage()` with fallback
-- **Unknown platforms**: Returns zero values (graceful degradation)
+- **Linux**:
+- **macOS**:
+- **Windows**: 
+- **Other Unix**:
 
 ## Installation
 
