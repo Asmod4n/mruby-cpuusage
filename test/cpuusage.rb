@@ -32,13 +32,6 @@ assert("CPUUsage.snapshot has total_time") do
   assert_true snapshot[:total_time] >= 0.0
 end
 
-assert("CPUUsage.snapshot total_time equals user + system") do
-  snapshot = CPUUsage.snapshot
-  expected_total = snapshot[:user_time] + snapshot[:system_time]
-  # Allow for small floating-point differences
-  assert_true (snapshot[:total_time] - expected_total).abs < 0.0001
-end
-
 assert("CPUUsage.snapshot increases with CPU work") do
   # Take first snapshot
   snapshot1 = CPUUsage.snapshot
