@@ -7,12 +7,6 @@
 
 #define _GNU_SOURCE  /* for RUSAGE_THREAD on Linux */
 
-typedef struct {
-  double user_time;    /* User CPU time in seconds */
-  double system_time;  /* System CPU time in seconds */
-  double child_user_time;
-  double child_sys_time;
-} cpu_snapshot_t;
 
 /* Platform detection */
 #if defined(_WIN32) || defined(_WIN64)
@@ -24,7 +18,7 @@ typedef struct {
   #include <sys/times.h>
   #include <unistd.h>
 #endif
-
+#include <errno.h>
 #include <mruby.h>
 #include <mruby/class.h>
 #include <mruby/data.h>
@@ -32,6 +26,13 @@ typedef struct {
 #include <mruby/string.h>
 #include <mruby/presym.h>
 #include <mruby/error.h>
+
+typedef struct {
+  mrb_float user_time;    /* User CPU time in seconds */
+  mrb_float system_time;  /* System CPU time in seconds */
+  mrb_float child_user_time;
+  mrb_float child_sys_time;
+} cpu_snapshot_t;
 
 #ifndef PLATFORM_WINDOWS
 static long cpuusage_hz = 0;
@@ -48,20 +49,12 @@ cpuusage_init(mrb_state *mrb)
 /*
 ** Get CPU usage snapshot
 ** Returns 0 on success, -1 on failure
-**
-** cpu_snapshot_t is expected to look like:
-**
-**   typedef struct {
-**     double user_time;
-**     double system_time;
-**     double child_user_time;
-**     double child_sys_time;
-**   } cpu_snapshot_t;
 */
 static int
 cpuusage_snapshot(cpu_snapshot_t *snapshot)
 {
   if (!snapshot) {
+    errno = EINVAL;
     return -1;
   }
 
@@ -81,8 +74,8 @@ cpuusage_snapshot(cpu_snapshot_t *snapshot)
   userInt.LowPart    = userTime.dwLowDateTime;
   userInt.HighPart   = userTime.dwHighDateTime;
 
-  snapshot->system_time     = (double)kernelInt.QuadPart / 10000000.0;
-  snapshot->user_time       = (double)userInt.QuadPart   / 10000000.0;
+  snapshot->system_time     = (mrb_float)kernelInt.QuadPart / 10000000.0;
+  snapshot->user_time       = (mrb_float)userInt.QuadPart   / 10000000.0;
   snapshot->child_user_time = 0.0;
   snapshot->child_sys_time  = 0.0;
 
@@ -101,20 +94,20 @@ cpuusage_snapshot(cpu_snapshot_t *snapshot)
   }
 
   snapshot->user_time =
-      (double)usage_t.ru_utime.tv_sec +
-      (double)usage_t.ru_utime.tv_usec / 1e6;
+      (mrb_float)usage_t.ru_utime.tv_sec +
+      (mrb_float)usage_t.ru_utime.tv_usec / 1e6;
 
   snapshot->system_time =
-      (double)usage_t.ru_stime.tv_sec +
-      (double)usage_t.ru_stime.tv_usec / 1e6;
+      (mrb_float)usage_t.ru_stime.tv_sec +
+      (mrb_float)usage_t.ru_stime.tv_usec / 1e6;
 
   snapshot->child_user_time =
-      (double)usage_c.ru_utime.tv_sec +
-      (double)usage_c.ru_utime.tv_usec / 1e6;
+      (mrb_float)usage_c.ru_utime.tv_sec +
+      (mrb_float)usage_c.ru_utime.tv_usec / 1e6;
 
   snapshot->child_sys_time =
-      (double)usage_c.ru_stime.tv_sec +
-      (double)usage_c.ru_stime.tv_usec / 1e6;
+      (mrb_float)usage_c.ru_stime.tv_sec +
+      (mrb_float)usage_c.ru_stime.tv_usec / 1e6;
 
   return 0;
 
@@ -127,10 +120,10 @@ cpuusage_snapshot(cpu_snapshot_t *snapshot)
     return -1;
   }
 
-  snapshot->user_time       = (double)t.tms_utime  / (double)cpuusage_hz;
-  snapshot->system_time     = (double)t.tms_stime  / (double)cpuusage_hz;
-  snapshot->child_user_time = (double)t.tms_cutime / (double)cpuusage_hz;
-  snapshot->child_sys_time  = (double)t.tms_cstime / (double)cpuusage_hz;
+  snapshot->user_time       = (mrb_float)t.tms_utime  / (mrb_float)cpuusage_hz;
+  snapshot->system_time     = (mrb_float)t.tms_stime  / (mrb_float)cpuusage_hz;
+  snapshot->child_user_time = (mrb_float)t.tms_cutime / (mrb_float)cpuusage_hz;
+  snapshot->child_sys_time  = (mrb_float)t.tms_cstime / (mrb_float)cpuusage_hz;
 
   return 0;
 #endif
