@@ -140,6 +140,7 @@ mrb_cpuusage_snapshot(mrb_state *mrb, mrb_value self)
   }
 
   hash = mrb_hash_new_capa(mrb, 5);
+  mrb_gc_protect(mrb, hash);
 
   mrb_hash_set(mrb, hash, mrb_symbol_value(MRB_SYM(user_time)),
                mrb_float_value(mrb, snapshot.user_time));
